@@ -806,9 +806,15 @@ export default function (R) {
                                     var gradient = R._g.doc.getElementById(node.getAttribute("fill").replace(/^url\(#|\)$/g, E));
                                     if (gradient) {
                                         var stops = gradient.getElementsByTagName("stop");
-                                        $(stops[stops.length - 1], {
-                                            "stop-opacity": ("opacity" in attrs ? attrs.opacity : 1) * ("fill-opacity" in attrs ? attrs["fill-opacity"] : 1)
-                                        });
+                                        if ("fill-opacity" in params && "opacity" in params) {
+                                            $(stops[stops.length - 1], {
+                                                "stop-opacity": ("opacity" in attrs ? attrs.opacity : 1) * ("fill-opacity" in attrs ? attrs["fill-opacity"] : 1)
+                                            });
+                                        } else {
+                                            $(stops[stops.length - 1], {
+                                                "stop-opacity": ("fill-opacity" in attrs ? attrs["fill-opacity"] : 1)
+                                            });
+                                        }
                                     }
                                 }
                                 attrs.gradient = value;
@@ -1536,7 +1542,6 @@ export default function (R) {
         \*/
         elproto.on = function(eventType, handler) {
             var elem = this,
-            node,
             fn,
             oldEventType;
             if (this.removed) {
@@ -1578,16 +1583,11 @@ export default function (R) {
                     })
                 }
             }
-            if (this._ && this._.RefImg) {
-                node = this._.RefImg;
-            } else {
-                node = this.node;
-            }
-            if (node.addEventListener) {
-                node.addEventListener(eventType, fn);
+            if (this.node.addEventListener) {
+                this.node.addEventListener(eventType, fn);
             }
             else {
-                node['on'+ eventType] = fn;
+                this.node['on'+ eventType] = fn;
             }
             return this;
         };
@@ -1635,16 +1635,11 @@ export default function (R) {
                     }
                 }
             }
-            if (this._ && this._.RefImg) {
-                node = this._.RefImg;
-            } else {
-                node = this.node;
-            }
-            if (node.removeEventListener) {
-                node.removeEventListener(eventType, fn);
+            if (this.node.removeEventListener) {
+                this.node.removeEventListener(eventType, fn);
             }
             else {
-                node['on'+ eventType] = null;
+                this.node['on'+ eventType] = null;
             }
             return this;
         };
@@ -1709,11 +1704,20 @@ export default function (R) {
                 RefImg = element._.RefImg = new Image();
             }
 
-            if (attrs.src === undefined) {
-                return;
+            if (attrs.src !== undefined) {
+                RefImg.src = src;
+                RefImg.onload = function () {
+                    element.attr({
+                        width: element.attrs.width || RefImg.width,
+                        height: element.attrs.height || RefImg.height
+                    });
+                    // parent.canvas && parent.canvas.appendChild(node);
+                };
+                RefImg.onerror = function (e) {
+                    node.onerror && node.onerror(e);
+                };
+                element._.RefImg = RefImg;
             }
-            RefImg.src = src;
-            element._.RefImg = RefImg;
         };
         R._engine.image = function(svg, attrs, group) {
             var el = $("image"),
